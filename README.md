@@ -18,6 +18,8 @@ if stats != nil {
 - Keys not yet modeled — and known keys with unexpectedly non-string
   values — are preserved in `Unknown`, so nothing is dropped when Spanner
   adds keys.
+- JSON marshaling/unmarshaling preserves those unknown keys too, which keeps
+  stored query profile payloads forward-compatible.
 - Entry points for all three shapes tools encounter:
   `FromResultSetStats(*sppb.ResultSetStats)`, `FromStruct(*structpb.Struct)`,
   and `FromMap(map[string]any)` (the `spanner.RowIterator.QueryStats` shape).
