@@ -1,6 +1,7 @@
 package spanstats_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
@@ -71,5 +72,79 @@ func TestFromMapEmpty(t *testing.T) {
 	}
 	if got.Unknown != nil {
 		t.Errorf("Unknown = %v, want nil", got.Unknown)
+	}
+}
+
+func TestQueryStatsUnmarshalJSONPreservesUnknown(t *testing.T) {
+	t.Parallel()
+
+	var got spanstats.QueryStats
+	err := json.Unmarshal([]byte(`{
+		"elapsed_time": "1.23 msecs",
+		"rows_returned": 42,
+		"future_key": "future value",
+		"future_object": {"nested": true}
+	}`), &got)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := spanstats.QueryStats{
+		ElapsedTime: "1.23 msecs",
+		Unknown: map[string]any{
+			"rows_returned": float64(42),
+			"future_key":    "future value",
+			"future_object": map[string]any{"nested": true},
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("QueryStats JSON unmarshal mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestQueryStatsMarshalJSONPreservesUnknown(t *testing.T) {
+	t.Parallel()
+
+	input := spanstats.QueryStats{
+		ElapsedTime:  "1.23 msecs",
+		RowsReturned: "42",
+		Unknown: map[string]any{
+			"future_key":        "future value",
+			"query_plan_cached": true,
+			"optimizer_version": 7,
+		},
+	}
+
+	b, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"elapsed_time":      "1.23 msecs",
+		"rows_returned":     "42",
+		"future_key":        "future value",
+		"query_plan_cached": true,
+		"optimizer_version": float64(7),
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("QueryStats JSON marshal mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestQueryStatsUnmarshalJSONNull(t *testing.T) {
+	t.Parallel()
+
+	got := spanstats.QueryStats{ElapsedTime: "previous"}
+	if err := json.Unmarshal([]byte(" \n null \t "), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := spanstats.QueryStats{ElapsedTime: "previous"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("QueryStats JSON null mismatch (-want +got):\n%s", diff)
 	}
 }

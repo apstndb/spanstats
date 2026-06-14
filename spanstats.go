@@ -9,6 +9,10 @@
 package spanstats
 
 import (
+	"bytes"
+	"encoding/json"
+	"maps"
+
 	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -43,6 +47,67 @@ type QueryStats struct {
 	// Unknown preserves keys this package does not model (and known keys
 	// whose value was not a string). A nil map means none were present.
 	Unknown map[string]any `json:"-"`
+}
+
+// MarshalJSON encodes modeled fields and [QueryStats.Unknown] as one JSON
+// object, so unknown query_stats keys survive JSON round-trips.
+func (s QueryStats) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.asMap())
+}
+
+// UnmarshalJSON decodes query_stats JSON with the same preservation semantics
+// as [FromMap].
+func (s *QueryStats) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return nil
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+
+	parsed := FromMap(m)
+	if parsed == nil {
+		*s = QueryStats{}
+		return nil
+	}
+	*s = *parsed
+	return nil
+}
+
+func (s QueryStats) asMap() map[string]any {
+	m := make(map[string]any, len(s.Unknown)+24)
+	maps.Copy(m, s.Unknown)
+	setIfNotEmpty := func(key, value string) {
+		if value != "" {
+			m[key] = value
+		}
+	}
+	setIfNotEmpty("elapsed_time", s.ElapsedTime)
+	setIfNotEmpty("cpu_time", s.CPUTime)
+	setIfNotEmpty("rows_returned", s.RowsReturned)
+	setIfNotEmpty("rows_scanned", s.RowsScanned)
+	setIfNotEmpty("deleted_rows_scanned", s.DeletedRowsScanned)
+	setIfNotEmpty("optimizer_version", s.OptimizerVersion)
+	setIfNotEmpty("optimizer_statistics_package", s.OptimizerStatisticsPackage)
+	setIfNotEmpty("remote_server_calls", s.RemoteServerCalls)
+	setIfNotEmpty("memory_peak_usage_bytes", s.MemoryPeakUsageBytes)
+	setIfNotEmpty("total_memory_peak_usage_byte", s.TotalMemoryPeakUsageByte)
+	setIfNotEmpty("query_text", s.QueryText)
+	setIfNotEmpty("bytes_returned", s.BytesReturned)
+	setIfNotEmpty("runtime_creation_time", s.RuntimeCreationTime)
+	setIfNotEmpty("statistics_load_time", s.StatisticsLoadTime)
+	setIfNotEmpty("memory_usage_percentage", s.MemoryUsagePercentage)
+	setIfNotEmpty("filesystem_delay_seconds", s.FilesystemDelaySeconds)
+	setIfNotEmpty("locking_delay", s.LockingDelay)
+	setIfNotEmpty("query_plan_creation_time", s.QueryPlanCreationTime)
+	setIfNotEmpty("server_queue_delay", s.ServerQueueDelay)
+	setIfNotEmpty("data_bytes_read", s.DataBytesRead)
+	setIfNotEmpty("is_graph_query", s.IsGraphQuery)
+	setIfNotEmpty("runtime_cached", s.RuntimeCached)
+	setIfNotEmpty("query_plan_cached", s.QueryPlanCached)
+	return m
 }
 
 // fieldByKey maps a query_stats key to the corresponding string field.
