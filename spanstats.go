@@ -9,6 +9,7 @@
 package spanstats
 
 import (
+	"bytes"
 	"encoding/json"
 	"maps"
 
@@ -57,6 +58,10 @@ func (s QueryStats) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes query_stats JSON with the same preservation semantics
 // as [FromMap].
 func (s *QueryStats) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return nil
+	}
+
 	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err

@@ -140,10 +140,11 @@ func TestQueryStatsUnmarshalJSONNull(t *testing.T) {
 	t.Parallel()
 
 	got := spanstats.QueryStats{ElapsedTime: "previous"}
-	if err := json.Unmarshal([]byte(`null`), &got); err != nil {
+	if err := json.Unmarshal([]byte(" \n null \t "), &got); err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(spanstats.QueryStats{}, got); diff != "" {
+	want := spanstats.QueryStats{ElapsedTime: "previous"}
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("QueryStats JSON null mismatch (-want +got):\n%s", diff)
 	}
 }
